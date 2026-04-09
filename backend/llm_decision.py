@@ -1,6 +1,8 @@
 import os
 import json
 from openai import OpenAI
+from dotenv import load_dotenv
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 SYSTEM_PROMPT = """You are a highly reliable AI-based KYC Decision Engine designed for a banking-grade identity verification system.
 
@@ -90,7 +92,7 @@ DEEPFAKE:
 def get_llm_decision(face_match: float, liveness_score: float, blink_detected: bool,
                      head_movement: str, deepfake_score: float) -> dict:
 
-    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY", "").strip())
 
     user_input = json.dumps({
         "face_match_score": face_match,
@@ -100,14 +102,35 @@ def get_llm_decision(face_match: float, liveness_score: float, blink_detected: b
         "deepfake_score": deepfake_score
     })
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user",   "content": user_input}
-        ],
-        temperature=0,        # deterministic
-        response_format={"type": "json_object"}
-    )
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user",   "content": user_input}
+            ],
+            temperature=0,
+            response_format={"type": "json_object"}
+        )
+        return json.loads(response.choices[0].message.content)
+    except Exception:
+        return _rule_based_fallback(face_match, liveness_score, blink_detected, head_movement, deepfake_score)
 
-    return json.loads(response.choices[0].message.content)
+
+def _rule_based_fallback(face_match, liveness_score, blink_detected, head_movement, deepfake_score):
+    if face_match < 50 or deepfake_score > 70 or liveness_score < 40 or head_movement == "no_face":
+        decision, level = "FRAUDULENT", "HIGH"
+    elif face_match >= 80 and liveness_score >= 80 and deepfake_score < 30:
+        decision, level = "GENUINE", "LOW"
+    else:
+        decision, level = "SUSPICIOUS", "MEDIUM"
+
+    risk = round((100 - face_match) * 0.4 + (100 - liveness_score) * 0.3 + deepfake_score * 0.3, 2)
+    spoof_note = " No blink and centered head detected — possible spoof." if not blink_detected and head_movement == "center" else ""
+
+    return {
+        "final_decision": decision,
+        "risk_score": risk,
+        "risk_level": level,
+        "reasoning": f"[Fallback] Face match: {face_match}%, Liveness: {liveness_score}%, Deepfake: {deepfake_score}%, Head: {head_movement}.{spoof_note}"
+    }
