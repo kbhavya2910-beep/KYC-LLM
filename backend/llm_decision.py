@@ -1,7 +1,8 @@
 import os
 import json
-from openai import OpenAI
+from groq import Groq
 from dotenv import load_dotenv
+
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 SYSTEM_PROMPT = """You are a highly reliable AI-based KYC Decision Engine designed for a banking-grade identity verification system.
@@ -18,10 +19,7 @@ You will receive structured inputs in JSON format:
   "deepfake_score": number (0-100)
 }
 
----
-
 ### YOUR TASK:
-
 1. Analyze all inputs logically and consistently
 2. Detect inconsistencies or suspicious patterns
 3. Assign:
@@ -29,8 +27,6 @@ You will receive structured inputs in JSON format:
    - Risk Score: 0-100
    - Risk Level: LOW / MEDIUM / HIGH
 4. Provide a short but precise reasoning
-
----
 
 ### DECISION RULES (STRICT):
 
@@ -49,27 +45,16 @@ DEEPFAKE:
 - 30-60 → Suspicious
 - > 60 → Likely fake
 
----
-
 ### LOGIC:
-
 - If face_match_score < 50 → FRAUDULENT
 - If deepfake_score > 70 → FRAUDULENT
 - If liveness_score < 40 → FRAUDULENT
-
 - If moderate values in multiple categories → SUSPICIOUS
 - If all scores are strong → GENUINE
-
-- If blink_detected = false AND head_movement = "center"
-  → Increase suspicion (possible spoof)
-
-- If head_movement = "no_face"
-  → Immediately HIGH RISK
-
----
+- If blink_detected = false AND head_movement = "center" → Increase suspicion (possible spoof)
+- If head_movement = "no_face" → Immediately HIGH RISK
 
 ### OUTPUT FORMAT (STRICT JSON ONLY):
-
 {
   "final_decision": "GENUINE / SUSPICIOUS / FRAUDULENT",
   "risk_score": number,
@@ -77,10 +62,7 @@ DEEPFAKE:
   "reasoning": "Explain decision clearly based on scores and detected patterns"
 }
 
----
-
 ### IMPORTANT RULES:
-
 - Be deterministic (same input = same output)
 - Do NOT hallucinate
 - Do NOT ignore any field
@@ -92,8 +74,6 @@ DEEPFAKE:
 def get_llm_decision(face_match: float, liveness_score: float, blink_detected: bool,
                      head_movement: str, deepfake_score: float) -> dict:
 
-    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY", "").strip())
-
     user_input = json.dumps({
         "face_match_score": face_match,
         "liveness_score": liveness_score,
@@ -103,8 +83,9 @@ def get_llm_decision(face_match: float, liveness_score: float, blink_detected: b
     })
 
     try:
+        client = Groq(api_key=os.environ.get("GROQ_API_KEY", "").strip())
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="llama-3.3-70b-versatile",
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user",   "content": user_input}
@@ -113,7 +94,7 @@ def get_llm_decision(face_match: float, liveness_score: float, blink_detected: b
             response_format={"type": "json_object"}
         )
         return json.loads(response.choices[0].message.content)
-    except Exception:
+    except Exception as e:
         return _rule_based_fallback(face_match, liveness_score, blink_detected, head_movement, deepfake_score)
 
 
@@ -126,11 +107,11 @@ def _rule_based_fallback(face_match, liveness_score, blink_detected, head_moveme
         decision, level = "SUSPICIOUS", "MEDIUM"
 
     risk = round((100 - face_match) * 0.4 + (100 - liveness_score) * 0.3 + deepfake_score * 0.3, 2)
-    spoof_note = " No blink and centered head detected — possible spoof." if not blink_detected and head_movement == "center" else ""
+    spoof = " No blink and centered head — possible spoof." if not blink_detected and head_movement == "center" else ""
 
     return {
         "final_decision": decision,
         "risk_score": risk,
         "risk_level": level,
-        "reasoning": f"[Fallback] Face match: {face_match}%, Liveness: {liveness_score}%, Deepfake: {deepfake_score}%, Head: {head_movement}.{spoof_note}"
+        "reasoning": f"[Fallback] Face match: {face_match}%, Liveness: {liveness_score}%, Deepfake: {deepfake_score}%, Head: {head_movement}.{spoof}"
     }

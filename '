@@ -1,0 +1,4 @@
+  File "<string>", line 1
+    import sys,json; sys.path.insert(0,'backend'); from llm_decision import get_llm_decision; tests=[('GENUINE',88,100,True,'left',20),('FRAUDULENT',40,30,False,'center',80),('SUSPICIOUS',65,50,False,'center',45)]; [print(t[0],'-, json.dumps(get_llm_decision(t[1],t[2],t[3],t[4],t[5]),indent=2)) for t in tests]
+                                                                                                                                                                                                                                   ^
+SyntaxError: unterminated string literal (detected at line 1)

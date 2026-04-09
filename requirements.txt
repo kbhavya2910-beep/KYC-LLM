@@ -8,3 +8,5 @@ pillow
 tf-keras
 python-multipart
 openai
+groq
+python-dotenv
