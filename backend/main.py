@@ -1,6 +1,5 @@
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import numpy as np
@@ -24,14 +23,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "..", "frontend")), name="static")
+FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend")
 
 # Store uploaded ID image in memory
 id_img_store = {}
 
 @app.get("/")
 def index():
-    return FileResponse(os.path.join(os.path.dirname(__file__), "..", "frontend", "index.html"))
+    return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
+
+@app.get("/{filename}")
+def static_files(filename: str):
+    path = os.path.join(FRONTEND_DIR, filename)
+    if os.path.exists(path):
+        return FileResponse(path)
+    return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
 
 @app.post("/upload-id")
 async def upload_id(id_image: UploadFile = File(...)):
