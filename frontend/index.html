@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>KYC Verification</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 36px 20px;
+    }
+
+    header { text-align: center; margin-bottom: 32px; }
+    header h1 { font-size: 1.9rem; color: #38bdf8; }
+    header p  { color: #94a3b8; margin-top: 6px; font-size: 0.9rem; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      width: 100%;
+      max-width: 900px;
+    }
+
+    .panel {
+      background: #1e293b;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+
+    .panel h2 {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #94a3b8;
+      margin-bottom: 16px;
+    }
+
+    /* ID Upload */
+    .upload-box {
+      border: 2px dashed #334155;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      position: relative;
+      transition: border-color 0.2s;
+    }
+    .upload-box:hover { border-color: #38bdf8; }
+    .upload-box input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .upload-box .icon { font-size: 2rem; margin-bottom: 8px; }
+    .upload-box span { font-size: 0.85rem; color: #94a3b8; }
+
+    #idPreview {
+      width: 100%;
+      max-height: 200px;
+      object-fit: cover;
+      border-radius: 10px;
+      margin-top: 14px;
+      display: none;
+    }
+
+    #uploadStatus {
+      margin-top: 10px;
+      font-size: 0.82rem;
+      text-align: center;
+      color: #4ade80;
+      display: none;
+    }
+
+    /* Webcam */
+    #webcamWrap { position: relative; }
+
+    video, canvas {
+      width: 100%;
+      border-radius: 10px;
+      display: block;
+      background: #0f172a;
+    }
+
+    canvas { display: none; }
+
+    #camOverlay {
+      position: absolute;
+      top: 10px; left: 10px;
+      background: rgba(0,0,0,0.6);
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      color: #94a3b8;
+    }
+
+    #matchBadge {
+      position: absolute;
+      bottom: 10px; left: 50%;
+      transform: translateX(-50%);
+      padding: 6px 20px;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      display: none;
+      white-space: nowrap;
+    }
+
+    .match-high   { background: #14532d; color: #4ade80; }
+    .match-medium { background: #713f12; color: #fbbf24; }
+    .match-low    { background: #7f1d1d; color: #f87171; }
+
+    /* Controls */
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    button {
+      flex: 1;
+      padding: 11px;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    #startBtn  { background: #38bdf8; color: #0f172a; }
+    #startBtn:hover  { background: #0ea5e9; }
+    #startBtn:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+
+    #stopBtn   { background: #334155; color: #94a3b8; }
+    #stopBtn:hover { background: #475569; }
+    #stopBtn:disabled { background: #1e293b; color: #475569; cursor: not-allowed; }
+
+    /* Results panel */
+    .results-panel {
+      grid-column: 1 / -1;
+      background: #1e293b;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      display: none;
+    }
+
+    .results-panel h2 {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #94a3b8;
+      margin-bottom: 20px;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .metric-card {
+      background: #0f172a;
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .metric-card .label { font-size: 0.78rem; color: #64748b; margin-bottom: 6px; }
+    .metric-card .value { font-size: 1.4rem; font-weight: 800; }
+    .metric-card .bar-wrap {
+      background: #1e293b;
+      border-radius: 4px;
+      height: 6px;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+    .metric-card .bar {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.5s ease;
+    }
+
+    .info-row {
+      display: flex;
+      gap: 16px;
+    }
+
+    .info-item {
+      flex: 1;
+      background: #0f172a;
+      border-radius: 12px;
+      padding: 14px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .info-item .label { font-size: 0.82rem; color: #64748b; }
+
+    .bool-badge {
+      padding: 3px 12px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .bool-true  { background: #14532d; color: #4ade80; }
+    .bool-false { background: #7f1d1d; color: #f87171; }
+
+    .risk-badge {
+      padding: 4px 16px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+    .risk-LOW    { background: #14532d; color: #4ade80; }
+    .risk-MEDIUM { background: #713f12; color: #fbbf24; }
+    .risk-HIGH   { background: #7f1d1d; color: #f87171; }
+
+    #errorMsg {
+      grid-column: 1 / -1;
+      padding: 12px 16px;
+      background: #7f1d1d;
+      color: #fca5a5;
+      border-radius: 10px;
+      font-size: 0.88rem;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🔐 KYC Verification</h1>
+  <p>Upload your ID, then look into the camera for live face matching</p>
+</header>
+
+<div class="layout">
+
+  <!-- ID Upload -->
+  <div class="panel">
+    <h2>Step 1 — Upload ID Photo</h2>
+    <div class="upload-box" id="uploadBox">
+      <div class="icon">🪪</div>
+      <span>Click to upload ID image</span>
+      <input type="file" id="idInput" accept="image/*"/>
+    </div>
+    <img id="idPreview"/>
+    <div id="uploadStatus">✅ ID uploaded successfully</div>
+  </div>
+
+  <!-- Webcam -->
+  <div class="panel">
+    <h2>Step 2 — Live Camera</h2>
+    <div id="webcamWrap">
+      <video id="video" autoplay playsinline muted></video>
+      <canvas id="canvas"></canvas>
+      <div id="camOverlay">● LIVE</div>
+      <div id="matchBadge"></div>
+    </div>
+    <div class="controls">
+      <button id="startBtn" disabled>▶ Start Verification</button>
+      <button id="stopBtn"  disabled>■ Stop</button>
+    </div>
+  </div>
+
+  <!-- Error -->
+  <div id="errorMsg"></div>
+
+  <!-- Results -->
+  <div class="results-panel" id="resultsPanel">
+    <h2>Live Results</h2>
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="label">Face Match</div>
+        <div class="value" id="rFaceMatch" style="color:#38bdf8">—</div>
+        <div class="bar-wrap"><div class="bar" id="barFace" style="background:#38bdf8;width:0%"></div></div>
+      </div>
+      <div class="metric-card">
+        <div class="label">Liveness Score</div>
+        <div class="value" id="rLiveness" style="color:#a78bfa">—</div>
+        <div class="bar-wrap"><div class="bar" id="barLiveness" style="background:#a78bfa;width:0%"></div></div>
+      </div>
+      <div class="metric-card">
+        <div class="label">Deepfake Risk</div>
+        <div class="value" id="rDeepfake" style="color:#fb923c">—</div>
+        <div class="bar-wrap"><div class="bar" id="barDeepfake" style="background:#fb923c;width:0%"></div></div>
+      </div>
+    </div>
+    <div class="info-row">
+      <div class="info-item">
+        <span class="label">Blink Detected</span>
+        <span class="bool-badge" id="rBlink">—</span>
+      </div>
+      <div class="info-item">
+        <span class="label">Head Movement</span>
+        <span id="rHead" style="font-weight:600;font-size:0.9rem">—</span>
+      </div>
+      <div class="info-item">
+        <span class="label">Risk Score</span>
+        <span id="rRiskScore" style="font-weight:800;font-size:1rem">—</span>
+      </div>
+      <div class="info-item">
+        <span class="label">Risk Level</span>
+        <span class="risk-badge" id="rRiskLevel">—</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const idInput      = document.getElementById('idInput');
+  const idPreview    = document.getElementById('idPreview');
+  const uploadStatus = document.getElementById('uploadStatus');
+  const startBtn     = document.getElementById('startBtn');
+  const stopBtn      = document.getElementById('stopBtn');
+  const video        = document.getElementById('video');
+  const canvas       = document.getElementById('canvas');
+  const matchBadge   = document.getElementById('matchBadge');
+  const resultsPanel = document.getElementById('resultsPanel');
+  const errorMsg     = document.getElementById('errorMsg');
+
+  let stream = null;
+  let loopId = null;
+  let running = false;
+  let idUploaded = false;
+
+  // Upload ID image
+  idInput.addEventListener('change', async () => {
+    const file = idInput.files[0];
+    if (!file) return;
+
+    // Preview
+    const reader = new FileReader();
+    reader.onload = e => {
+      idPreview.src = e.target.result;
+      idPreview.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+
+    // Upload to backend
+    const form = new FormData();
+    form.append('id_image', file);
+    try {
+      const res = await fetch('/upload-id', { method: 'POST', body: form });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      uploadStatus.style.display = 'block';
+      idUploaded = true;
+      startBtn.disabled = false;
+    } catch (e) {
+      showError('ID upload failed: ' + e.message);
+    }
+  });
+
+  // Start webcam + verification loop
+  startBtn.addEventListener('click', async () => {
+    errorMsg.style.display = 'none';
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      video.srcObject = stream;
+      await video.play();
+    } catch (e) {
+      showError('Camera access denied: ' + e.message);
+      return;
+    }
+
+    running = true;
+    startBtn.disabled = true;
+    stopBtn.disabled  = false;
+    resultsPanel.style.display = 'block';
+    matchBadge.style.display   = 'block';
+    matchBadge.textContent     = 'Analyzing...';
+    matchBadge.className       = 'match-medium';
+
+    verifyLoop();
+  });
+
+  // Stop
+  stopBtn.addEventListener('click', stopVerification);
+
+  function stopVerification() {
+    running = false;
+    clearTimeout(loopId);
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    stream = null;
+    startBtn.disabled = !idUploaded;
+    stopBtn.disabled  = true;
+    matchBadge.style.display = 'none';
+  }
+
+  async function verifyLoop() {
+    if (!running) return;
+
+    // Capture frame from video
+    canvas.width  = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    const frame = canvas.toDataURL('image/jpeg', 0.8);
+
+    try {
+      const res  = await fetch('/verify-frame', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ frame })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      updateResults(data);
+    } catch (e) {
+      // silently skip bad frames
+    }
+
+    loopId = setTimeout(verifyLoop, 1500); // run every 1.5s
+  }
+
+  function updateResults(d) {
+    document.getElementById('rFaceMatch').textContent  = d.face_match + '%';
+    document.getElementById('rLiveness').textContent   = d.liveness_score + '%';
+    document.getElementById('rDeepfake').textContent   = d.deepfake_score + '%';
+    document.getElementById('rRiskScore').textContent  = d.risk_score;
+    document.getElementById('rHead').textContent       = d.head_movement.replace('_', ' ');
+
+    document.getElementById('barFace').style.width     = Math.min(d.face_match, 100) + '%';
+    document.getElementById('barLiveness').style.width = Math.min(d.liveness_score, 100) + '%';
+    document.getElementById('barDeepfake').style.width = Math.min(d.deepfake_score, 100) + '%';
+
+    const blinkEl = document.getElementById('rBlink');
+    blinkEl.textContent = d.blink_detected ? 'Yes' : 'No';
+    blinkEl.className   = 'bool-badge ' + (d.blink_detected ? 'bool-true' : 'bool-false');
+
+    const riskEl = document.getElementById('rRiskLevel');
+    riskEl.textContent = d.risk_level;
+    riskEl.className   = 'risk-badge risk-' + d.risk_level;
+
+    // Live match badge on video
+    const score = d.face_match;
+    if (score >= 60) {
+      matchBadge.textContent = '✅ Match ' + score + '%';
+      matchBadge.className   = 'match-high';
+    } else if (score >= 35) {
+      matchBadge.textContent = '⚠️ Partial ' + score + '%';
+      matchBadge.className   = 'match-medium';
+    } else {
+      matchBadge.textContent = '❌ No Match ' + score + '%';
+      matchBadge.className   = 'match-low';
+    }
+  }
+
+  function showError(msg) {
+    errorMsg.textContent   = '⚠️ ' + msg;
+    errorMsg.style.display = 'block';
+  }
+</script>
+</body>
+</html>
