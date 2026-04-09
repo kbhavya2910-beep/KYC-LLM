@@ -13,7 +13,7 @@ from face_match import get_face_match_score
 from blink import detect_blink
 from head_pose import detect_head_movement
 from deepfake import detect_deepfake
-from risk_engine import calculate_risk
+from llm_decision import get_llm_decision
 
 app = FastAPI()
 
@@ -58,9 +58,9 @@ async def verify_frame(data: FrameData):
 
     id_img = id_img_store["img"]
 
-    face_score    = get_face_match_score(id_img, live_img)
-    blink         = detect_blink(live_img)
-    head          = detect_head_movement(live_img)
+    face_score     = get_face_match_score(id_img, live_img)
+    blink          = detect_blink(live_img)
+    head           = detect_head_movement(live_img)
     deepfake_score = detect_deepfake(live_img)
 
     liveness_score = 0
@@ -69,14 +69,16 @@ async def verify_frame(data: FrameData):
     if head in ["left", "right"]:
         liveness_score += 50
 
-    risk_score, risk_level = calculate_risk(face_score, liveness_score, deepfake_score)
+    llm = get_llm_decision(face_score, liveness_score, blink, head, deepfake_score)
 
     return {
-        "face_match": face_score,
+        "face_match":     face_score,
         "blink_detected": blink,
-        "head_movement": head,
+        "head_movement":  head,
         "liveness_score": liveness_score,
         "deepfake_score": deepfake_score,
-        "risk_score": risk_score,
-        "risk_level": risk_level
+        "risk_score":     llm.get("risk_score"),
+        "risk_level":     llm.get("risk_level"),
+        "final_decision": llm.get("final_decision"),
+        "reasoning":      llm.get("reasoning")
     }
