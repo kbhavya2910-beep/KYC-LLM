@@ -218,6 +218,14 @@
     .decision-SUSPICIOUS { background: #713f12; color: #fbbf24; }
     .decision-FRAUDULENT { background: #7f1d1d; color: #f87171; }
 
+    #statusBar {
+      text-align: center;
+      font-size: 0.8rem;
+      color: #64748b;
+      margin-top: 10px;
+      min-height: 18px;
+    }
+
     #reasoningBox {
       background: #0f172a;
       border-radius: 12px;
@@ -338,6 +346,7 @@
     </div>
 
     <!-- LLM Reasoning -->
+    <div id="statusBar"></div>
     <div id="reasoningBox">
       <div class="rlabel">🤖 LLM Reasoning</div>
       <div id="reasoningText"></div>
@@ -358,6 +367,7 @@
   const resultsPanel = document.getElementById('resultsPanel');
   const errorMsg     = document.getElementById('errorMsg');
   const reasoningBox = document.getElementById('reasoningBox');
+  const statusBar    = document.getElementById('statusBar');
 
   let stream = null, loopId = null, running = false, idUploaded = false;
 
@@ -416,6 +426,7 @@
     canvas.getContext('2d').drawImage(video, 0, 0);
     const frame = canvas.toDataURL('image/jpeg', 0.8);
 
+    statusBar.textContent = '⏳ Analyzing frame...';
     try {
       const res  = await fetch('/verify-frame', {
         method: 'POST',
@@ -425,9 +436,12 @@
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       updateResults(data);
-    } catch (e) { /* skip bad frames */ }
+      statusBar.textContent = '✅ Last updated: ' + new Date().toLocaleTimeString();
+    } catch (e) {
+      statusBar.textContent = '⚠️ Frame error: ' + e.message;
+    }
 
-    loopId = setTimeout(verifyLoop, 2000);
+    loopId = setTimeout(verifyLoop, 4000);
   }
 
   function updateResults(d) {
