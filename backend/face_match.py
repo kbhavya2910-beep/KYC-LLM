@@ -1,37 +1,56 @@
 import cv2
 import tempfile
 import os
+import numpy as np
 from deepface import DeepFace
 
-def get_face_match_score(id_img, live_img):
+# Cache the ID image embedding so it's only computed once on upload
+_id_embedding = None
+
+def set_id_embedding(id_img):
+    global _id_embedding
     try:
-        f1 = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
-        f2 = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
-        f1.close()
-        f2.close()
-
-        cv2.imwrite(f1.name, id_img)
-        cv2.imwrite(f2.name, live_img)
-
-        result = DeepFace.verify(
-            f1.name, f2.name,
+        f = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
+        f.close()
+        cv2.imwrite(f.name, id_img)
+        result = DeepFace.represent(
+            f.name,
             model_name="Facenet",
             detector_backend="opencv",
-            enforce_detection=False,
-            silent=True
+            enforce_detection=False
         )
+        os.unlink(f.name)
+        _id_embedding = np.array(result[0]["embedding"])
+        print("[FaceMatch] ID embedding cached")
+        return True
+    except Exception as e:
+        print(f"[FaceMatch] Embedding error: {e}")
+        return False
 
-        os.unlink(f1.name)
-        os.unlink(f2.name)
+def get_face_match_score(live_img):
+    global _id_embedding
+    if _id_embedding is None:
+        return 0
+    try:
+        f = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
+        f.close()
+        cv2.imwrite(f.name, live_img)
+        result = DeepFace.represent(
+            f.name,
+            model_name="Facenet",
+            detector_backend="opencv",
+            enforce_detection=False
+        )
+        os.unlink(f.name)
+        live_emb = np.array(result[0]["embedding"])
 
-        distance  = result["distance"]
-        threshold = result["threshold"]
-
-        # 100% when distance=0 (perfect match), 0% when distance >= 2x threshold
-        score = max(0.0, min(100.0, (1.0 - distance / (threshold * 2.0)) * 100.0))
-        print(f"[FaceMatch] distance={distance:.4f} threshold={threshold:.4f} score={score:.2f}%")
+        # Cosine similarity → score
+        cosine_sim = np.dot(_id_embedding, live_emb) / (
+            np.linalg.norm(_id_embedding) * np.linalg.norm(live_emb) + 1e-6
+        )
+        score = max(0.0, min(100.0, cosine_sim * 100.0))
+        print(f"[FaceMatch] cosine={cosine_sim:.4f} score={score:.2f}%")
         return round(score, 2)
-
     except Exception as e:
         print(f"[FaceMatch] Error: {e}")
         return 0

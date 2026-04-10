@@ -8,7 +8,7 @@ import base64
 
 import sys, os
 sys.path.insert(0, os.path.dirname(__file__))
-from face_match import get_face_match_score
+from face_match import get_face_match_score, set_id_embedding
 from blink import detect_blink
 from head_pose import detect_head_movement
 from deepfake import detect_deepfake
@@ -25,7 +25,6 @@ app.add_middleware(
 
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend")
 
-# Store uploaded ID image in memory
 id_img_store = {}
 
 @app.get("/")
@@ -46,28 +45,26 @@ async def upload_id(id_image: UploadFile = File(...)):
     if img is None:
         return {"error": "Invalid image"}
     id_img_store["img"] = img
+    set_id_embedding(img)  # cache embedding once
     return {"status": "ID uploaded"}
 
 class FrameData(BaseModel):
-    frame: str  # base64 encoded JPEG
+    frame: str
 
 @app.post("/verify-frame")
 async def verify_frame(data: FrameData):
     if "img" not in id_img_store:
         return {"error": "No ID image uploaded"}
 
-    # Decode base64 webcam frame
     img_bytes = base64.b64decode(data.frame.split(",")[-1])
-    live_img = cv2.imdecode(np.frombuffer(img_bytes, np.uint8), 1)
+    live_img  = cv2.imdecode(np.frombuffer(img_bytes, np.uint8), 1)
     if live_img is None:
         return {"error": "Invalid frame"}
 
-    id_img = id_img_store["img"]
-
-    face_score     = get_face_match_score(id_img, live_img)
+    face_score     = get_face_match_score(live_img)
     blink          = detect_blink(live_img)
     head           = detect_head_movement(live_img)
-    deepfake_score = detect_deepfake(live_img)
+    deepfake_score = detect_deepfake(live_img, face_score)
 
     liveness_score = 0
     if blink:
