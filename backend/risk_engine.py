@@ -1,16 +1,24 @@
-def calculate_risk(face_score, liveness_score, deepfake_score):
+def calculate_risk(face_score, liveness_score, deepfake_score,
+                   blink_detected=True, head_movement="center"):
+
+    face_risk = 100 - face_score
+    liveness_risk = 100 - liveness_score
+    deepfake_risk = deepfake_score
+
+    behavior_risk = 0
+    if not blink_detected:
+        behavior_risk += 5
+    if head_movement == "no_face":
+        behavior_risk += 10
+    elif head_movement == "center":
+        behavior_risk += 5
 
     risk = (
-        (100 - face_score) * 0.4 +
-        (100 - liveness_score) * 0.3 +
-        deepfake_score * 0.3
+        face_risk * 0.4 +
+        liveness_risk * 0.25 +
+        deepfake_risk * 0.25 +
+        behavior_risk * 0.10
     )
 
-    if risk < 30:
-        level = "LOW"
-    elif risk < 70:
-        level = "MEDIUM"
-    else:
-        level = "HIGH"
-
-    return round(risk, 2), level
+    risk = max(0, min(100, risk))
+    return round(risk, 2)

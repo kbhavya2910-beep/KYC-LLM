@@ -335,14 +335,6 @@
         <span class="label">Risk Score</span>
         <span id="rRiskScore" style="font-weight:800;font-size:1rem">—</span>
       </div>
-      <div class="info-item">
-        <span class="label">Risk Level</span>
-        <span class="badge" id="rRiskLevel">—</span>
-      </div>
-      <div class="info-item">
-        <span class="label">Final Decision</span>
-        <span class="badge" id="rDecision">—</span>
-      </div>
     </div>
 
     <!-- LLM Reasoning -->
@@ -458,14 +450,6 @@
     const blinkEl = document.getElementById('rBlink');
     blinkEl.textContent = d.blink_detected ? 'Yes' : 'No';
     blinkEl.className   = 'bool-badge ' + (d.blink_detected ? 'bool-true' : 'bool-false');
-
-    const riskEl = document.getElementById('rRiskLevel');
-    riskEl.textContent = d.risk_level || '—';
-    riskEl.className   = 'badge risk-' + (d.risk_level || 'LOW');
-
-    const decEl = document.getElementById('rDecision');
-    decEl.textContent = d.final_decision || '—';
-    decEl.className   = 'badge decision-' + (d.final_decision || 'GENUINE');
 
     if (d.reasoning) {
       document.getElementById('reasoningText').textContent = d.reasoning;

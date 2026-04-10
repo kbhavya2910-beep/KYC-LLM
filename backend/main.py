@@ -82,7 +82,5 @@ async def verify_frame(data: FrameData):
         "liveness_score": liveness_score,
         "deepfake_score": deepfake_score,
         "risk_score":     llm.get("risk_score"),
-        "risk_level":     llm.get("risk_level"),
-        "final_decision": llm.get("final_decision"),
         "reasoning":      llm.get("reasoning")
     }
