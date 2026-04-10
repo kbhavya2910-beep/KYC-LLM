@@ -15,7 +15,7 @@ def get_face_match_score(id_img, live_img):
 
         result = DeepFace.verify(
             f1.name, f2.name,
-            model_name="Facenet",
+            model_name="VGG-Face",
             detector_backend="opencv",
             enforce_detection=False,
             silent=True
