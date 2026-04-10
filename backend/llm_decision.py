@@ -1,6 +1,6 @@
 import os
 import json
-from groq import Groq
+from openai import OpenAI
 from dotenv import load_dotenv
 
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
@@ -83,9 +83,12 @@ def get_llm_decision(face_match: float, liveness_score: float, blink_detected: b
     })
 
     try:
-        client = Groq(api_key=os.environ.get("GROQ_API_KEY", "").strip())
+        client = OpenAI(
+            api_key=os.environ.get("OPENROUTER_API_KEY", "").strip(),
+            base_url="https://openrouter.ai/api/v1"
+        )
         response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-120b:free",
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user",   "content": user_input}
@@ -95,6 +98,7 @@ def get_llm_decision(face_match: float, liveness_score: float, blink_detected: b
         )
         return json.loads(response.choices[0].message.content)
     except Exception as e:
+        print(f"[LLM] Error: {e}")
         return _rule_based_fallback(face_match, liveness_score, blink_detected, head_movement, deepfake_score)
 
 
