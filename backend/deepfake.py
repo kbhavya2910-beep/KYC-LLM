@@ -1,6 +1,3 @@
-import random
-
 def detect_deepfake(frame):
-    # Placeholder (replace with model later)
-    score = random.uniform(10, 70)
-    return round(score, 2)
+    # Placeholder - returns low risk so LLM decision is driven by face match
+    return 10.0
