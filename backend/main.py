@@ -2,6 +2,7 @@ from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
+from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 import cv2
 import base64
@@ -24,8 +25,8 @@ app.add_middleware(
 )
 
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend")
-
 id_img_store = {}
+executor     = ThreadPoolExecutor(max_workers=4)
 
 @app.get("/")
 def index():
@@ -45,7 +46,7 @@ async def upload_id(id_image: UploadFile = File(...)):
     if img is None:
         return {"error": "Invalid image"}
     id_img_store["img"] = img
-    set_id_embedding(img)  # cache embedding once
+    set_id_embedding(img)
     return {"status": "ID uploaded"}
 
 class FrameData(BaseModel):
@@ -61,9 +62,15 @@ async def verify_frame(data: FrameData):
     if live_img is None:
         return {"error": "Invalid frame"}
 
-    face_score     = get_face_match_score(live_img)
-    blink          = detect_blink(live_img)
-    head           = detect_head_movement(live_img)
+    # Run face_match, blink, head in parallel
+    f_face  = executor.submit(get_face_match_score, live_img)
+    f_blink = executor.submit(detect_blink, live_img)
+    f_head  = executor.submit(detect_head_movement, live_img)
+
+    face_score = f_face.result()
+    blink      = f_blink.result()
+    head       = f_head.result()
+
     deepfake_score = detect_deepfake(live_img, face_score)
 
     liveness_score = 0
