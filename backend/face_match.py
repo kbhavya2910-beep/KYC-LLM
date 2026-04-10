@@ -15,7 +15,7 @@ def get_face_match_score(id_img, live_img):
 
         result = DeepFace.verify(
             f1.name, f2.name,
-            model_name="VGG-Face",
+            model_name="Facenet",
             detector_backend="opencv",
             enforce_detection=False,
             silent=True
@@ -27,8 +27,8 @@ def get_face_match_score(id_img, live_img):
         distance  = result["distance"]
         threshold = result["threshold"]
 
-        # 100% when distance=0 (perfect match), 0% when distance >= threshold
-        score = max(0.0, min(100.0, (1.0 - distance / threshold) * 100.0))
+        # 100% when distance=0 (perfect match), 0% when distance >= 2x threshold
+        score = max(0.0, min(100.0, (1.0 - distance / (threshold * 2.0)) * 100.0))
         print(f"[FaceMatch] distance={distance:.4f} threshold={threshold:.4f} score={score:.2f}%")
         return round(score, 2)
 
