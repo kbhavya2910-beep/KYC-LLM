@@ -9,7 +9,7 @@ import base64
 import sys, os
 sys.path.insert(0, os.path.dirname(__file__))
 from face_match import get_face_match_score
-from blink import detect_blink, get_eye_openness
+from blink import detect_blink
 from head_pose import detect_head_movement
 from deepfake import detect_deepfake
 from llm_decision import get_llm_decision
@@ -67,16 +67,13 @@ async def verify_frame(data: FrameData):
     face_score     = get_face_match_score(id_img, live_img)
     blink          = detect_blink(live_img)
     head           = detect_head_movement(live_img)
-    eye_openness   = get_eye_openness(live_img)
     deepfake_score = detect_deepfake(live_img)
 
-    # Liveness: blink(40) + head movement(40) + eye openness(20)
     liveness_score = 0
     if blink:
-        liveness_score += 40
+        liveness_score += 50
     if head in ["left", "right"]:
-        liveness_score += 40
-    liveness_score += min(20, eye_openness * 0.2)
+        liveness_score += 50
 
     llm = get_llm_decision(face_score, liveness_score, blink, head, deepfake_score)
 

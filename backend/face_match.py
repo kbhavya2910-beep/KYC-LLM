@@ -9,13 +9,14 @@ def get_face_match_score(id_img, live_img):
         f2 = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
         f1.close()
         f2.close()
+
         cv2.imwrite(f1.name, id_img)
         cv2.imwrite(f2.name, live_img)
 
         result = DeepFace.verify(
             f1.name, f2.name,
-            model_name="ArcFace",
-            detector_backend="retinaface",
+            model_name="Facenet",
+            detector_backend="opencv",
             enforce_detection=False,
             silent=True
         )
